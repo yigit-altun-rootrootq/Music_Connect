@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MusicConnect — Unreal Engine Audio Streaming Plugin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080a0f;
+    --surface: #0e1118;
+    --card: #13171f;
+    --border: #1e2535;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --accent3: #ff3d71;
+    --text: #e8eaf0;
+    --muted: #6b7899;
+    --glow: 0 0 40px rgba(0,229,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 600px; height: 600px; background: var(--accent); top: -200px; left: -200px; animation: drift 12s ease-in-out infinite alternate; }
+  .orb-2 { width: 500px; height: 500px; background: var(--accent2); bottom: -100px; right: -100px; animation: drift 15s ease-in-out infinite alternate-reverse; }
+  .orb-3 { width: 300px; height: 300px; background: var(--accent3); top: 50%; left: 60%; animation: drift 10s ease-in-out infinite alternate; }
+
+  @keyframes drift {
+    from { transform: translate(0, 0); }
+    to { transform: translate(40px, 30px); }
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 48px;
+    background: rgba(8,10,15,0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--text); }
+  .nav-yt {
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-family: 'Space Mono', monospace;
+    transition: color 0.2s;
+  }
+  .nav-yt:hover { color: var(--accent3); }
+  .nav-yt svg { width: 18px; height: 18px; fill: currentColor; }
+
+  /* HERO */
+  .hero {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 120px 24px 80px;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,229,255,0.08);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s ease both;
+  }
+  .badge-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 10vw, 8rem);
+    line-height: 0.9;
+    letter-spacing: 4px;
+    animation: fadeUp 0.6s 0.1s ease both;
+    margin-bottom: 8px;
+  }
+  .hero-title .line2 { color: var(--accent); display: block; }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.7;
+    margin: 24px auto 0;
+    font-weight: 300;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  /* PLATFORM BADGES */
+  .platforms {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 40px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+  .platform {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+  }
+  .platform-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .p-yt { background: #ff0000; }
+  .p-sp { background: #1db954; }
+  .p-sc { background: #ff5500; }
+  .p-am { background: #fc3c44; }
+
+  /* CTA BUTTONS */
+  .cta-group {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 48px;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  .btn-primary {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 16px 36px;
+    border-radius: 4px;
+    text-decoration: none;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    overflow: hidden;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.15);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+  }
+  .btn-primary:hover::before { transform: translateX(0); }
+  .btn-primary:hover { box-shadow: 0 0 40px rgba(0,229,255,0.4); transform: translateY(-2px); }
+  .btn-primary svg { width: 18px; height: 18px; }
+
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: transparent;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    padding: 16px 32px;
+    border-radius: 4px;
+    text-decoration: none;
+    letter-spacing: 1px;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+
+  /* MODAL OVERLAY */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    z-index: 1000;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 40px;
+    max-width: 480px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+    animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.85); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 1.4rem; line-height: 1;
+    transition: color 0.2s;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-icon {
+    font-size: 3rem; margin-bottom: 16px;
+  }
+  .modal h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+  .modal p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+  .modal p strong { color: var(--text); }
+  .btn-youtube {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #ff0000;
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 16px 32px;
+    border-radius: 4px;
+    text-decoration: none;
+    letter-spacing: 1px;
+    width: 100%;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .btn-youtube:hover { background: #cc0000; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(255,0,0,0.3); }
+  .btn-youtube svg { width: 20px; height: 20px; fill: white; }
+  .modal-skip {
+    display: block;
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+    background: none; border: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .modal-skip:hover { color: var(--text); }
+
+  /* FEATURES */
+  .section {
+    position: relative; z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 80px 24px;
+  }
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    letter-spacing: 2px;
+    margin-bottom: 48px;
+    line-height: 1;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transform: scaleX(0);
+    transition: transform 0.3s;
+    transform-origin: left;
+  }
+  .feature-card:hover::before { transform: scaleX(1); }
+  .feature-card:hover { border-color: rgba(0,229,255,0.2); transform: translateY(-4px); box-shadow: var(--glow); }
+  .feature-icon { font-size: 1.8rem; margin-bottom: 16px; display: block; }
+  .feature-card h3 { font-size: 1.05rem; font-weight: 500; margin-bottom: 8px; }
+  .feature-card p { color: var(--muted); font-size: 0.875rem; line-height: 1.65; }
+
+  /* NODES / QUICKSTART */
+  .quickstart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media(max-width:680px){ .quickstart-grid { grid-template-columns: 1fr; } }
+
+  .step-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  .step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    color: var(--border);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .step-card h3 { font-size: 1rem; font-weight: 500; margin-bottom: 8px; color: var(--accent); }
+  .step-card p { color: var(--muted); font-size: 0.875rem; line-height: 1.65; }
+
+  /* CODE SNIPPET */
+  .code-block {
+    background: #0a0c12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.8;
+    margin-top: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .code-block .k { color: #7c3aed; }
+  .code-block .s { color: #00e5ff; }
+  .code-block .c { color: #3a4460; }
+
+  /* PLATFORMS SECTION */
+  .compat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  @media(max-width:680px){ .compat-grid { grid-template-columns: 1fr 1fr; } }
+  .compat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  .compat-icon { font-size: 2rem; margin-bottom: 12px; display: block; }
+  .compat-card h4 { font-size: 0.9rem; font-weight: 500; margin-bottom: 4px; }
+  .compat-card p { font-size: 0.75rem; color: var(--muted); }
+  .compat-yes { color: #22c55e; font-size: 0.75rem; font-family: 'Space Mono', monospace; }
+  .compat-no { color: var(--accent3); font-size: 0.75rem; font-family: 'Space Mono', monospace; }
+
+  /* DIVIDER */
+  .divider {
+    position: relative; z-index: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 0 24px;
+  }
+
+  /* CTA BOTTOM SECTION */
+  .cta-bottom {
+    position: relative; z-index: 1;
+    text-align: center;
+    padding: 100px 24px;
+  }
+  .cta-bottom h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 7vw, 6rem);
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+  }
+  .cta-bottom h2 span { color: var(--accent); }
+  .cta-bottom p { color: var(--muted); max-width: 480px; margin: 0 auto 40px; font-size: 1rem; line-height: 1.7; }
+
+  /* FOOTER */
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 32px 48px;
+    display: flex;
+    align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+  }
+  footer p { color: var(--muted); font-size: 0.8rem; }
+  footer a { color: var(--muted); text-decoration: none; font-size: 0.8rem; font-family: 'Space Mono', monospace; transition: color 0.2s; }
+  footer a:hover { color: var(--accent); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scroll fade-in */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* Wave equalizer animation in hero */
+  .equalizer {
+    display: flex; align-items: flex-end; gap: 4px;
+    height: 40px; margin-bottom: 32px;
+  }
+  .eq-bar {
+    width: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: eq 1s ease-in-out infinite alternate;
+    opacity: 0.6;
+  }
+  .eq-bar:nth-child(1){ height: 20%; animation-delay: 0s; }
+  .eq-bar:nth-child(2){ height: 60%; animation-delay: 0.1s; }
+  .eq-bar:nth-child(3){ height: 90%; animation-delay: 0.2s; }
+  .eq-bar:nth-child(4){ height: 40%; animation-delay: 0.3s; }
+  .eq-bar:nth-child(5){ height: 75%; animation-delay: 0.15s; }
+  .eq-bar:nth-child(6){ height: 55%; animation-delay: 0.25s; }
+  .eq-bar:nth-child(7){ height: 30%; animation-delay: 0.05s; }
+  @keyframes eq {
+    from { transform: scaleY(0.3); }
+    to { transform: scaleY(1); }
+  }
+</style>
+</head>
+<body>
+
+<!-- BG orbs -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#"><span>Music</span>CONNECT</a>
+  <a class="nav-yt" href="https://www.youtube.com/@rootrootQ" target="_blank">
+    <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+    @rootrootQ
+  </a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="equalizer" style="justify-content:center;">
+    <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
+    <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
+    <div class="eq-bar"></div>
+  </div>
+
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    UNREAL ENGINE · BLUEPRINT PLUGIN · FREE
+  </div>
+
+  <h1 class="hero-title">
+    MUSIC
+    <span class="line2">CONNECT</span>
+  </h1>
+
+  <p class="hero-sub">
+    Stream music from YouTube, Spotify, SoundCloud, and Apple Music directly inside your Unreal Engine game — zero coding required.
+  </p>
+
+  <div class="platforms">
+    <div class="platform"><span class="platform-dot p-yt"></span> YouTube</div>
+    <div class="platform"><span class="platform-dot p-sp"></span> Spotify</div>
+    <div class="platform"><span class="platform-dot p-sc"></span> SoundCloud</div>
+    <div class="platform"><span class="platform-dot p-am"></span> Apple Music</div>
+  </div>
+
+  <div class="cta-group">
+    <button class="btn-primary" onclick="openModal()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+      DOWNLOAD FREE
+    </button>
+    <a class="btn-ghost" href="https://github.com/yigit-altun-rootrootq/Music_Connect" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+      VIEW ON GITHUB
+    </a>
+  </div>
+</section>
+
+<!-- DOWNLOAD MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-icon">🎵</div>
+    <h2>BEFORE YOU GO...</h2>
+    <p>
+      <strong>MusicConnect</strong> is completely free — but it takes hours of work to build and maintain.<br><br>
+      If you find it useful, subscribing to the YouTube channel helps keep the project alive!
+    </p>
+    <a class="btn-youtube" href="https://www.youtube.com/@rootrootQ" target="_blank" onclick="startDownload()">
+      <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      Subscribe & Download
+    </a>
+    <button class="modal-skip" onclick="startDownload(); closeModal()">No thanks, just download</button>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="divider"></div>
+<section class="section">
+  <p class="section-label reveal">// Features</p>
+  <h2 class="section-title reveal">WHAT CAN IT DO?</h2>
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <span class="feature-icon">🎛️</span>
+      <h3>100% Blueprint Friendly</h3>
+      <p>No C++ required. Drag, drop, and connect nodes. Works in any Blueprint Actor, GameMode, or PlayerController.</p>
+    </div>
+    <div class="feature-card reveal">
+      <span class="feature-icon">🌐</span>
+      <h3>Multi-Platform Streaming</h3>
+      <p>Search by song name or paste a URL from YouTube, Spotify, SoundCloud, or Apple Music — it just works.</p>
+    </div>
+    <div class="feature-card reveal">
+      <span class="feature-icon">⏯️</span>
+      <h3>Full Playback Control</h3>
+      <p>Play, Pause, Resume, Stop, Next/Previous Track, Jump To Track, Loop, Shuffle — all available as Blueprint nodes.</p>
+    </div>
+    <div class="feature-card reveal">
+      <span class="feature-icon">🔊</span>
+      <h3>Volume & Fade</h3>
+      <p>Set volume instantly or smoothly fade in/out over time. Range is 0.0–1.0, no extra setup needed.</p>
+    </div>
+    <div class="feature-card reveal">
+      <span class="feature-icon">📡</span>
+      <h3>Event Dispatchers</h3>
+      <p>React to state changes automatically — On State Changed, On Track Changed, On Error. Perfect for dynamic UIs.</p>
+    </div>
+    <div class="feature-card reveal">
+      <span class="feature-icon">📦</span>
+      <h3>Packaged Game Ready</h3>
+      <p>One extra step in Project Settings and your shipped game keeps streaming music without any issues.</p>
+    </div>
+  </div>
+</section>
+
+<!-- QUICKSTART -->
+<div class="divider"></div>
+<section class="section">
+  <p class="section-label reveal">// Quick Start</p>
+  <h2 class="section-title reveal">READY IN 60 SECONDS</h2>
+  <div class="quickstart-grid">
+    <div class="step-card reveal">
+      <div class="step-num">01</div>
+      <h3>Add the Component</h3>
+      <p>Open your Blueprint Actor, go to the Components panel, click <strong>+ Add</strong>, and search for <strong>Music Connect Player</strong>.</p>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">02</div>
+      <h3>Use the Play Node</h3>
+      <p>Drag your component into the Event Graph, pull a wire and search <strong>Play Music Stream</strong>. Type a song name or paste a URL into the <em>Search Or URL</em> pin.</p>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">03</div>
+      <h3>Handle Events</h3>
+      <p>Connect the <strong>On Playing</strong> pin to update your UI, <strong>On Error</strong> to show a fallback, and <strong>On Track Changed</strong> for playlists.</p>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">04</div>
+      <h3>Package Your Game</h3>
+      <p>In Project Settings, add <code>Plugins/MusicConnect/Binaries/ThirdParty</code> to <em>Additional Non-Asset Directories to Copy</em>. Done!</p>
+    </div>
+  </div>
+
+  <div class="code-block reveal" style="margin-top:32px;">
+    <span class="c">// Example Blueprint equivalent in pseudocode</span><br>
+    <span class="k">Event</span> BeginPlay<br>
+    &nbsp;&nbsp;<span class="k">→</span> MusicConnectPlayer.<span class="s">PlayMusicStream</span>(<span class="s">"Daft Punk Get Lucky"</span>)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="k">On Playing →</span> UpdateMusicUI()<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="k">On Error →</span> ShowErrorMessage()
+  </div>
+</section>
+
+<!-- COMPATIBILITY -->
+<div class="divider"></div>
+<section class="section">
+  <p class="section-label reveal">// Compatibility</p>
+  <h2 class="section-title reveal">PLATFORM SUPPORT</h2>
+  <div class="compat-grid">
+    <div class="compat-card reveal">
+      <span class="compat-icon">🪟</span>
+      <h4>Windows</h4>
+      <p class="compat-yes">✓ Supported</p>
+    </div>
+    <div class="compat-card reveal">
+      <span class="compat-icon">🍎</span>
+      <h4>Mac</h4>
+      <p class="compat-yes">✓ Supported</p>
+    </div>
+    <div class="compat-card reveal">
+      <span class="compat-icon">🐧</span>
+      <h4>Linux</h4>
+      <p class="compat-yes">✓ Supported</p>
+    </div>
+    <div class="compat-card reveal">
+      <span class="compat-icon">📱</span>
+      <h4>Mobile / Console</h4>
+      <p class="compat-no">✗ Not Supported</p>
+    </div>
+  </div>
+</section>
+
+<!-- BOTTOM CTA -->
+<div class="divider"></div>
+<div class="cta-bottom">
+  <h2 class="reveal">GET IT <span>FREE</span></h2>
+  <p class="reveal">No license fees. No subscriptions. Just add it to your project and start streaming music.</p>
+  <div class="cta-group reveal">
+    <button class="btn-primary" onclick="openModal()">
+      <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      DOWNLOAD NOW — FREE
+    </button>
+    <a class="btn-ghost" href="https://www.youtube.com/@rootrootQ" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      @rootrootQ
+    </a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2025 rootrootQ — MusicConnect Plugin. Free to use.</p>
+  <div style="display:flex;gap:24px;">
+    <a href="https://github.com/yigit-altun-rootrootq/Music_Connect" target="_blank">GitHub</a>
+    <a href="https://www.youtube.com/@rootrootQ" target="_blank">YouTube</a>
+  </div>
+</footer>
+
+<script>
+  // Modal logic
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+  function startDownload() {
+    // Download from GitHub releases or zip
+    window.location.href = 'https://github.com/yigit-altun-rootrootq/Music_Connect/archive/refs/heads/main.zip';
+  }
+
+  // Close modal on overlay click
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 60);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
